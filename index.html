@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow — Kunlik Vazifalar</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      background: var(--card);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+      padding: 2rem;
+    }
+
+    header {
+      margin-bottom: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 0.3rem;
+    }
+
+    p.subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    /* Progress Bar */
+    .progress-section {
+      margin-bottom: 1.5rem;
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Form */
+    .task-form {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .task-input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .task-input:focus {
+      border-color: var(--primary);
+    }
+
+    .add-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0 1.2rem;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .add-btn:hover {
+      background: var(--primary-dark);
+    }
+
+    /* Task List */
+    .task-list {
+      list-style: none;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.8rem 1rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 0.6rem;
+      transition: background 0.2s;
+    }
+
+    .task-item.completed {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .task-item.completed span {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .task-left {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      flex: 1;
+      cursor: pointer;
+    }
+
+    .task-checkbox {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0.2rem 0.5rem;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+
+    .delete-btn:hover {
+      opacity: 1;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      padding: 2rem 0;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>TaskFlow</h1>
+      <p class="subtitle">Bugungi rejalaringizni nazorat qiling</p>
+    </header>
+
+    <div class="progress-section">
+      <div class="progress-info">
+        <span>Bajarilgan vazifalar</span>
+        <span id="progress-text">0 / 0 (0%)</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <form class="task-form" onsubmit="addTask(event)">
+      <input type="text" id="task-input" class="task-input" placeholder="Yangi vazifa qo'shish..." autocomplete="off" required>
+      <button type="submit" class="add-btn">Qo'shish</button>
+    </form>
+
+    <ul class="task-list" id="task-list"></ul>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+    function saveTasks() {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      const listEl = document.getElementById('task-list');
+      const progressFill = document.getElementById('progress-fill');
+      const progressText = document.getElementById('progress-text');
+
+      if (tasks.length === 0) {
+        listEl.innerHTML = '<li class="empty-state">Hozircha vazifalar yo\'q. Yangisini qo\'shing!</li>';
+        progressFill.style.width = '0%';
+        progressText.innerText = '0 / 0 (0%)';
+        return;
+      }
+
+      const completedCount = tasks.filter(t => t.completed).length;
+      const percent = Math.round((completedCount / tasks.length) * 100);
+
+      progressFill.style.width = percent + '%';
+      progressText.innerText = `${completedCount} / ${tasks.length} (${percent}%)`;
+
+      listEl.innerHTML = tasks.map((task, index) => `
+        <li class="task-item ${task.completed ? 'completed' : ''}">
+          <div class="task-left" onclick="toggleTask(${index})">
+            <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} onclick="event.stopPropagation(); toggleTask(${index})">
+            <span>${escapeHtml(task.text)}</span>
+          </div>
+          <button class="delete-btn" onclick="deleteTask(${index})">🗑️</button>
+        </li>
+      `).join('');
+    }
+
+    function addTask(e) {
+      e.preventDefault();
+      const input = document.getElementById('task-input');
+      const text = input.value.trim();
+
+      if (text) {
+        tasks.push({ text, completed: false });
+        input.value = '';
+        saveTasks();
+        renderTasks();
+      }
+    }
+
+    function toggleTask(index) {
+      tasks[index].completed = !tasks[index].completed;
+      saveTasks();
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      tasks.splice(index, 1);
+      saveTasks();
+      renderTasks();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
+    }
+
+    // Boshlang'ich yuklash
+    renderTasks();
+  </script>
+</body>
+</html>
